@@ -5,8 +5,8 @@
 処理の流れは次のとおりです。
 
 ```text
-PDF → Abstract抽出 → qwen3-embedding → ChromaDB
-    → 全論文の類似度表示 → 上位3論文 → qwen3.5
+PDF → Abstract抽出 → qwen3-embedding:8b → ChromaDB
+    → 全論文の類似度表示 → 上位3論文 → qwen3.6
 ```
 
 ## 簡単な使い方
