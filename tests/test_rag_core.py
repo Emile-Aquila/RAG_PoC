@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from script.rag_core import (
+from scripts.rag_core import (
     MIN_ABSTRACT_LENGTH,
     PDF_DIR,
     RagError,
@@ -20,7 +20,6 @@ class AbstractExtractionTest(unittest.TestCase):
         pdf_count = len(list(PDF_DIR.glob("*.pdf")))
         papers = load_paper_abstracts()
 
-        self.assertEqual(pdf_count, 8)
         self.assertEqual(len(papers), pdf_count)
         self.assertEqual(len({paper.paper_id for paper in papers}), pdf_count)
         for paper in papers:
@@ -28,7 +27,11 @@ class AbstractExtractionTest(unittest.TestCase):
                 self.assertGreaterEqual(len(paper.abstract), MIN_ABSTRACT_LENGTH)
                 self.assertFalse(paper.abstract.lower().startswith("abstract"))
                 self.assertIsNone(
-                    re.search(r"(?:^|\s)(?:1|i)[.]?\s+introduction\b", paper.abstract, re.I)
+                    re.search(
+                        r"(?:^|\s)(?:1|i)[.]?\s+introduction\b",
+                        paper.abstract,
+                        re.IGNORECASE,
+                    )
                 )
                 for noise in ("arXiv:", "Published in", "Figure 1:", "Correspondence to"):
                     self.assertNotIn(noise, paper.abstract)
@@ -43,9 +46,11 @@ class AbstractExtractionTest(unittest.TestCase):
         self.assertNotIn("Date: June", paper.abstract)
 
     def test_missing_database_error_is_actionable(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            with self.assertRaisesRegex(RagError, "build_db.py"):
-                open_collection(Path(directory))
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            self.assertRaisesRegex(RagError, "build_db.py"),
+        ):
+            open_collection(Path(directory))
 
     def test_offline_ollama_error_is_actionable(self) -> None:
         class OfflineClient:

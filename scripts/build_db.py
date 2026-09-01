@@ -1,4 +1,4 @@
-"""Build the persistent ChromaDB from paper abstracts."""
+"""Build persistent ChromaDB data from paper abstracts."""
 
 from __future__ import annotations
 

@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "chromadb>=1.5.9",
+    "docling[rapidocr]>=2.119,<3",
     "ollama>=0.6.2",
     "pymupdf>=1.28.2",
 ]

@@ -1,25 +1,26 @@
-"""Abstract-based RAG core utilities."""
+"""Core utilities for abstract-based RAG search."""
 
 from __future__ import annotations
 
 import hashlib
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 import chromadb
 import ollama
 import pymupdf
-
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 PDF_DIR = PROJECT_DIR / "pdfs"
 DB_DIR = PROJECT_DIR / "db"
 COLLECTION_NAME = "paper_abstracts"
 EMBEDDING_MODEL = "qwen3-embedding:8b"
-LLM_MODEL = "qwen3.6:27b-mlx"
-TOP_K = 3
+# LLM_MODEL = "qwen3.6:27b-mlx"
+LLM_MODEL = "qwen3.5:9b-mlx"
+TOP_K = 2
 MIN_ABSTRACT_LENGTH = 200
 QUERY_INSTRUCTION = (
     "Retrieve research paper abstracts that are relevant to and help answer "
@@ -294,7 +295,7 @@ def rebuild_collection(
 def open_collection(db_dir: Path = DB_DIR) -> chromadb.Collection:
     if not db_dir.is_dir() or not (db_dir / "chroma.sqlite3").exists():
         raise RagError(
-            f"ChromaDBがありません: {db_dir}。先に `uv run python script/build_db.py` "
+            f"ChromaDBがありません: {db_dir}。先に `uv run python scripts/build_db.py` "
             "を実行してください。"
         )
 
@@ -304,7 +305,7 @@ def open_collection(db_dir: Path = DB_DIR) -> chromadb.Collection:
     except Exception as exc:
         raise RagError(
             f"コレクション `{COLLECTION_NAME}` がありません。"
-            "`uv run python script/build_db.py` で再構築してください。"
+            "`uv run python scripts/build_db.py` で再構築してください。"
         ) from exc
 
     metadata = collection.metadata or {}
@@ -312,7 +313,7 @@ def open_collection(db_dir: Path = DB_DIR) -> chromadb.Collection:
     if stored_model != EMBEDDING_MODEL:
         raise RagError(
             f"DBのEmbeddingモデルが一致しません: {stored_model!r}。"
-            "`uv run python script/build_db.py` で再構築してください。"
+            "`uv run python scripts/build_db.py` で再構築してください。"
         )
     if collection.count() == 0:
         raise RagError("ChromaDBのコレクションが空です。DBを再構築してください。")
@@ -356,44 +357,3 @@ def search_all(
             )
         )
     return results
-
-
-def answer_question(
-    client: ollama.Client, question: str, selected: Sequence[SearchResult]
-) -> str:
-    context = "\n\n".join(
-        f"[{result.title}]\n{result.abstract}" for result in selected
-    )
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are a research assistant. Answer only from the supplied paper "
-                "abstracts. If the abstracts do not contain enough information, say so "
-                "explicitly and do not use outside knowledge. Cite supporting paper titles "
-                "in square brackets. Answer in the same language as the user's question."
-            ),
-        },
-        {
-            "role": "user",
-            "content": f"Question:\n{question}\n\nRetrieved abstracts:\n{context}",
-        },
-    ]
-    try:
-        response = client.chat(
-            model=LLM_MODEL,
-            messages=messages,
-            think=False,
-            options={"temperature": 0.2},
-        )
-        message = getattr(response, "message", None)
-        content = getattr(message, "content", None)
-        if content is None and isinstance(response, dict):
-            content = (response.get("message") or {}).get("content")
-    except Exception as exc:
-        raise RagError(f"{LLM_MODEL} による回答生成に失敗しました: {exc}") from exc
-
-    answer = str(content or "").strip()
-    if not answer:
-        raise RagError("Ollamaから空の回答が返されました。")
-    return answer

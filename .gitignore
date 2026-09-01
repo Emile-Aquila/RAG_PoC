@@ -221,5 +221,6 @@ __marimo__/
 # datas
 /pdfs/
 /db/
+/ocr_cache/
 .claude
 .DS_Store
